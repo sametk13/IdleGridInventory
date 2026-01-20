@@ -5,7 +5,7 @@ public sealed class EnemyRespawnController : MonoBehaviour
 {
     [Header("Dependencies")]
     [SerializeField] private Transform spawnPoint;
-    [SerializeField] private PrefabEnemyFactory factoryBehaviour; 
+    [SerializeField] private PrefabEnemyFactory factoryBehaviour;
 
     [Header("Options")]
     [SerializeField] private Transform enemyParent; // optional
@@ -13,6 +13,8 @@ public sealed class EnemyRespawnController : MonoBehaviour
 
     private IUnitFactory<EnemyUnit> factory;
     private EnemyUnit currentEnemy;
+
+    public EnemyUnit CurrentEnemy => currentEnemy;
 
     private void Awake()
     {
@@ -67,6 +69,7 @@ public sealed class EnemyRespawnController : MonoBehaviour
     {
         UnhookCurrentEnemy();
         Destroy(currentEnemy.gameObject);
+        currentEnemy = null;
 
         if (respawnDelay <= 0f)
         {

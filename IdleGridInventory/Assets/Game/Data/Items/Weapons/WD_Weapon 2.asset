@@ -15,7 +15,12 @@ MonoBehaviour:
   itemId: item_id
   displayName: Item
   icon: {fileID: 1448562113225423980, guid: 1b57eeb11e4a8244fb40e46b7b05977b, type: 3}
-  width: 1
-  height: 1
-  damage: 1
-  cooldownSeconds: 1
+  cooldownSeconds: 1.25
+  shapeCells:
+  - {x: 0, y: 0}
+  damage: 3
+  throwSpeed: 0.9
+  arcHeight: 1.2
+  launchAngleDegrees: -9.6
+  spinDegreesPerSecond: 720
+  projectileScale: {x: 0.3, y: 0.3, z: 1}
