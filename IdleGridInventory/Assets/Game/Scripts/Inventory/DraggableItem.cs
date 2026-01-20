@@ -116,7 +116,10 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
     public void OnDrag(PointerEventData eventData)
     {
+        Debug.LogError(11);
+
         if (!isDragging) return;
+        Debug.LogError(2);
 
         Vector3 pointerWorld = GetPointerWorld(eventData.position);
         rectTransform.position = pointerWorld + worldDragOffset;
