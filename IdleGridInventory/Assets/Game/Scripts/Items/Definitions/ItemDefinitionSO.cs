@@ -10,13 +10,19 @@ public abstract class ItemDefinitionSO : ScriptableObject
     [Header("Visual")]
     [SerializeField] private Sprite icon;
 
+    [Min(0.05f)]
+    [SerializeField] private float cooldownSeconds = 1f;
+
+
     [Header("Shape (Cells)")]
     [Tooltip("Local occupied cells. Use non-negative coordinates. Example: (0,0) is top-left.")]
     [SerializeField] private Vector2Int[] shapeCells = new[] { Vector2Int.zero };
 
     public string ItemId => itemId;
     public string DisplayName => displayName;
+    public float CooldownSeconds => cooldownSeconds;
     public Sprite Icon => icon;
+
 
     public IReadOnlyList<Vector2Int> ShapeCells => shapeCells;
 

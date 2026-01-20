@@ -1,13 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
-public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
+public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler, IBrainModule
 {
+    private InventoryItemView itemView;
+    private PlacedItemCooldownController cooldownController;
+
     private RectTransform rectTransform;
+
     private CanvasGroup canvasGroup;
-    private Image image;
 
     private Vector2 originalAnchoredPos;
     private Transform originalParent;
@@ -23,6 +25,17 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
     private Camera uiCamera;
 
     public ItemDefinitionSO Definition => definition;
+
+
+    private IBrain brain;
+
+    public void Inject(IBrain brain)
+    {
+        this.brain = brain;
+
+        itemView = brain.Get<InventoryItemView>();
+        cooldownController = brain.Get<PlacedItemCooldownController>();
+    }
 
     public void AssignToQueue(ItemQueueManager queue)
     {
@@ -41,7 +54,6 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
     {
         rectTransform = GetComponent<RectTransform>();
         canvasGroup = GetComponent<CanvasGroup>();
-        image = GetComponent<Image>();
 
         if (canvasGroup == null)
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
@@ -60,21 +72,28 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         this.ownerQueue = ownerQueue;
 
         ApplyVisual();
+        ApplyCooldown();
         ApplySize();
     }
+    private void ApplyCooldown()
+    {
+        if (cooldownController == null) return;
+        if (definition == null) return;
 
+        cooldownController.SetCooldownSeconds(definition.CooldownSeconds);
+    }
     private void ApplyVisual()
     {
-        if (image == null) return;
+        if (itemView == null) return;
         if (definition == null) return;
 
         if (definition.Icon != null)
-            image.sprite = definition.Icon;
+            itemView.SetIcons(definition.Icon);
     }
 
     private void ApplySize()
     {
-        if (GridManager.Instance == null) return;
+        if (GridManager.Instance == null || itemView == null) return;
 
         float size = GridManager.Instance.CellSize;
         float space = GridManager.Instance.Spacing;
@@ -84,7 +103,8 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         float w = bounds.width * size + (bounds.width - 1) * space;
         float h = bounds.height * size + (bounds.height - 1) * space;
 
-        rectTransform.sizeDelta = new Vector2(w, h);
+
+        itemView.SetImageSizes(w, h);
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -116,10 +136,7 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
     public void OnDrag(PointerEventData eventData)
     {
-        Debug.LogError(11);
-
         if (!isDragging) return;
-        Debug.LogError(2);
 
         Vector3 pointerWorld = GetPointerWorld(eventData.position);
         rectTransform.position = pointerWorld + worldDragOffset;
