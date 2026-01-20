@@ -3466,6 +3466,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 4bd596dbba065454d9b7d7d053f550d9, type: 2}
   - {fileID: 11400000, guid: b7588f70cb8da8e46bd11b409b0f6d93, type: 2}
   - {fileID: 11400000, guid: ef8395ee7e4577948893b5eb7c8005cb, type: 2}
+  - {fileID: 11400000, guid: 4579447ef331c0247aed9728063fe956, type: 2}
   spawnCount: 3
 --- !u!1 &1806056630
 GameObject:

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemId: item_id
   displayName: Item
-  icon: {fileID: -2909301356545485968, guid: 21433ea34400cf146875575f81704b0a, type: 3}
+  icon: {fileID: -1173998173744074474, guid: 0ae8e381c097e874292028056c7a7388, type: 3}
   cooldownSeconds: 2.4
   shapeCells:
   - {x: 0, y: 0}
@@ -23,4 +23,4 @@ MonoBehaviour:
   arcHeight: 1
   launchAngleDegrees: -1.8
   spinDegreesPerSecond: 720
-  projectileScale: {x: 0.3, y: 0.3, z: 1}
+  projectileScale: {x: 0.45, y: 0.45, z: 1}

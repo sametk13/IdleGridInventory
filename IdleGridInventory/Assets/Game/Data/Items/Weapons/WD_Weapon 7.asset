@@ -10,18 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 06722f5b5d7d204438d4d0e28594a594, type: 3}
-  m_Name: WD_Weapon 6
+  m_Name: WD_Weapon 7
   m_EditorClassIdentifier: 
   itemId: item_id
   displayName: Item
-  icon: {fileID: 7430514702936405891, guid: 786506977008a07409eb24f1ab4541dd, type: 3}
+  icon: {fileID: -553096077831135260, guid: 71f0bb8291771cc458158f2d592996f6, type: 3}
   cooldownSeconds: 0.8
   shapeCells:
-  - {x: 0, y: 0}
+  - {x: 1, y: 0}
   - {x: 0, y: 1}
+  - {x: 1, y: 1}
   damage: 3
   throwSpeed: 0.9
   arcHeight: 0.8
-  launchAngleDegrees: -18.8
+  launchAngleDegrees: 24
   spinDegreesPerSecond: 720
-  projectileScale: {x: 0.6, y: 0.6, z: 1}
+  projectileScale: {x: 0.3, y: 0.3, z: 1}
