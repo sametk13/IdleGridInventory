@@ -15,7 +15,8 @@ MonoBehaviour:
   itemId: item_id
   displayName: Item
   icon: {fileID: 9016526688720973019, guid: fda10bbc476176441970d7e1a303ddd8, type: 3}
-  width: 1
-  height: 1
+  shapeCells:
+  - {x: 0, y: 0}
+  - {x: 0, y: 1}
   damage: 1
   cooldownSeconds: 1

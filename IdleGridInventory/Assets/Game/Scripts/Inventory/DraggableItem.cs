@@ -1,16 +1,10 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
 {
-    [Header("Shape (Cells) - Fallback")]
-    [SerializeField] private int width = 1;
-    [SerializeField] private int height = 1;
-
-    public int Width => definition != null ? definition.Width : width;
-    public int Height => definition != null ? definition.Height : height;
-
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
     private Image image;
@@ -27,6 +21,14 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
     private Vector3 worldDragOffset;
     private Camera uiCamera;
+
+    public ItemDefinitionSO Definition => definition;
+
+    public IReadOnlyList<Vector2Int> ShapeCells
+        => definition != null ? definition.ShapeCells : new[] { Vector2Int.zero };
+
+    public RectInt ShapeBounds
+        => definition != null ? definition.GetShapeBounds() : new RectInt(0, 0, 1, 1);
 
     private void Awake()
     {
@@ -70,8 +72,10 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         float size = GridManager.Instance.CellSize;
         float space = GridManager.Instance.Spacing;
 
-        float w = Width * size + (Width - 1) * space;
-        float h = Height * size + (Height - 1) * space;
+        RectInt bounds = ShapeBounds;
+
+        float w = bounds.width * size + (bounds.width - 1) * space;
+        float h = bounds.height * size + (bounds.height - 1) * space;
 
         rectTransform.sizeDelta = new Vector2(w, h);
     }
@@ -81,7 +85,6 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         if (GridManager.Instance == null) return;
 
         isDragging = true;
-
         uiCamera = eventData.pressEventCamera;
 
         originalParent = rectTransform.parent;
@@ -97,6 +100,12 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         rectTransform.SetAsLastSibling();
 
         canvasGroup.blocksRaycasts = false;
+
+        // Initialize preview if pointer already over grid.
+        if (GridManager.Instance.TryGetCellIndex(eventData.position, uiCamera, out int x, out int y))
+            GridManager.Instance.ShowPlacementPreview(this, x, y);
+        else
+            GridManager.Instance.ClearPlacementPreview();
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -105,6 +114,11 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
         Vector3 pointerWorld = GetPointerWorld(eventData.position);
         rectTransform.position = pointerWorld + worldDragOffset;
+
+        if (GridManager.Instance.TryGetCellIndex(eventData.position, uiCamera, out int x, out int y))
+            GridManager.Instance.ShowPlacementPreview(this, x, y);
+        else
+            GridManager.Instance.ClearPlacementPreview();
     }
 
     public void OnPointerUp(PointerEventData eventData)
@@ -135,6 +149,8 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
             rectTransform.SetParent(originalParent, worldPositionStays: false);
             rectTransform.anchoredPosition = originalAnchoredPos;
         }
+
+        GridManager.Instance.ClearPlacementPreview();
 
         canvasGroup.blocksRaycasts = true;
         worldDragOffset = Vector3.zero;

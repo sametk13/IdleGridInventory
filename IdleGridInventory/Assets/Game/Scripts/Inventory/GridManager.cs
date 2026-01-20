@@ -2,6 +2,7 @@ using OmniGameTemplate.Core;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public sealed class GridManager : MonoSingleton<GridManager>
 {
@@ -24,6 +25,10 @@ public sealed class GridManager : MonoSingleton<GridManager>
     [SerializeField] private RectTransform dragLayerRoot;
     [SerializeField] private GameObject cellPrefab;
 
+    [Header("Placement Preview")]
+    [SerializeField] private Color previewValidColor = new Color(0.2f, 1f, 0.2f, 1f);
+    [SerializeField] private Color previewInvalidColor = new Color(1f, 0.2f, 0.2f, 1f);
+
     public int Columns => columns;
     public int Rows => rows;
     public float CellSize => cellSize;
@@ -38,12 +43,19 @@ public sealed class GridManager : MonoSingleton<GridManager>
     private bool[,] occupied;
     private readonly Dictionary<DraggableItem, List<Vector2Int>> itemCells = new();
 
+    // Preview data
+    private Image[,] cellImages;
+    private readonly List<Vector2Int> previewCells = new();
+    private bool previewActive;
+
     private void Awake()
     {
         if (gridRoot == null)
             gridRoot = transform as RectTransform;
 
         occupied = new bool[columns, rows];
+        cellImages = new Image[columns, rows];
+
         GenerateGridVisual();
     }
 
@@ -82,6 +94,10 @@ public sealed class GridManager : MonoSingleton<GridManager>
 
                 rt.sizeDelta = new Vector2(cellSize, cellSize);
                 rt.anchoredPosition = GetCellAnchoredPosition(x, y);
+
+                Image img = cell.GetComponent<Image>();
+                if (img != null)
+                    cellImages[x, y] = img;
             }
         }
     }
@@ -114,25 +130,23 @@ public sealed class GridManager : MonoSingleton<GridManager>
     public bool CanPlace(DraggableItem item, int startX, int startY)
     {
         if (item == null) return false;
-
-        int w = item.Width;
-        int h = item.Height;
-
-        if (w <= 0 || h <= 0) return false;
         if (startX < 0 || startY < 0) return false;
-        if (startX + w > columns) return false;
-        if (startY + h > rows) return false;
 
-        for (int y = 0; y < h; y++)
+        IReadOnlyList<Vector2Int> shape = item.ShapeCells;
+        if (shape == null || shape.Count == 0) return false;
+
+        for (int i = 0; i < shape.Count; i++)
         {
-            for (int x = 0; x < w; x++)
-            {
-                int gx = startX + x;
-                int gy = startY + y;
+            Vector2Int c = shape[i];
 
-                if (occupied[gx, gy])
-                    return false;
-            }
+            int gx = startX + c.x;
+            int gy = startY + c.y;
+
+            if (gx < 0 || gx >= columns || gy < 0 || gy >= rows)
+                return false;
+
+            if (occupied[gx, gy])
+                return false;
         }
 
         return true;
@@ -144,21 +158,18 @@ public sealed class GridManager : MonoSingleton<GridManager>
 
         Clear(item);
 
-        int w = item.Width;
-        int h = item.Height;
+        IReadOnlyList<Vector2Int> shape = item.ShapeCells;
+        var cells = new List<Vector2Int>(shape.Count);
 
-        var cells = new List<Vector2Int>(w * h);
-
-        for (int y = 0; y < h; y++)
+        for (int i = 0; i < shape.Count; i++)
         {
-            for (int x = 0; x < w; x++)
-            {
-                int gx = startX + x;
-                int gy = startY + y;
+            Vector2Int c = shape[i];
 
-                occupied[gx, gy] = true;
-                cells.Add(new Vector2Int(gx, gy));
-            }
+            int gx = startX + c.x;
+            int gy = startY + c.y;
+
+            occupied[gx, gy] = true;
+            cells.Add(new Vector2Int(gx, gy));
         }
 
         itemCells[item] = cells;
@@ -216,5 +227,75 @@ public sealed class GridManager : MonoSingleton<GridManager>
         x = cx;
         y = cy;
         return true;
+    }
+
+    // ---------------------------
+    // Placement Preview API
+    // ---------------------------
+
+    public void ShowPlacementPreview(DraggableItem item, int startX, int startY)
+    {
+        if (item == null)
+        {
+            ClearPlacementPreview();
+            return;
+        }
+
+        IReadOnlyList<Vector2Int> shape = item.ShapeCells;
+        if (shape == null || shape.Count == 0)
+        {
+            ClearPlacementPreview();
+            return;
+        }
+
+        bool valid = CanPlace(item, startX, startY);
+
+        ClearPlacementPreviewInternal();
+
+        Color color = valid ? previewValidColor : previewInvalidColor;
+
+        for (int i = 0; i < shape.Count; i++)
+        {
+            Vector2Int c = shape[i];
+            int gx = startX + c.x;
+            int gy = startY + c.y;
+
+            if (gx < 0 || gx >= columns || gy < 0 || gy >= rows)
+                continue;
+
+            Image img = cellImages[gx, gy];
+            if (img == null) continue;
+
+            img.color = color;
+            previewCells.Add(new Vector2Int(gx, gy));
+        }
+
+        previewActive = previewCells.Count > 0;
+    }
+
+    public void ClearPlacementPreview()
+    {
+        ClearPlacementPreviewInternal();
+        previewActive = false;
+    }
+
+    private void ClearPlacementPreviewInternal()
+    {
+        if (!previewActive && previewCells.Count == 0)
+            return;
+
+        for (int i = 0; i < previewCells.Count; i++)
+        {
+            Vector2Int c = previewCells[i];
+            Image img = cellImages[c.x, c.y];
+            if (img == null) continue;
+
+            // Reset to prefab default by setting to white (tintless).
+            // Keep your base cell color in the prefab (Image color),
+            // and use a child overlay if you want perfect reset.
+            img.color = Color.white;
+        }
+
+        previewCells.Clear();
     }
 }
