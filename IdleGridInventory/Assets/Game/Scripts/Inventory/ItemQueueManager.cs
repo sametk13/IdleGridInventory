@@ -16,6 +16,8 @@ public sealed class ItemQueueManager : MonoBehaviour
     private readonly List<DraggableItem> activeQueueItems = new();
     private int consumedSinceLastSpawn;
 
+    public RectTransform QueueItemsRoot => queueItemsRoot;
+
     private void Start()
     {
         SpawnNewBatch(clearConsumedCounter: true);
@@ -40,9 +42,26 @@ public sealed class ItemQueueManager : MonoBehaviour
 
     public void RerollQueue()
     {
-        // Refresh only the items still in the queue area.
-        // Items already placed on the grid must not be affected.
         SpawnNewBatch(clearConsumedCounter: true);
+    }
+
+    public void ReturnToQueue(DraggableItem item)
+    {
+        if (item == null) return;
+        if (queueItemsRoot == null) return;
+
+        item.AssignToQueue(this);
+        item.transform.SetParent(queueItemsRoot, worldPositionStays: false);
+
+        if (!activeQueueItems.Contains(item))
+            activeQueueItems.Add(item);
+
+        LayoutQueueItems();
+    }
+
+    public void RefreshLayout()
+    {
+        LayoutQueueItems();
     }
 
     private void SpawnNewBatch(bool clearConsumedCounter)
@@ -81,8 +100,6 @@ public sealed class ItemQueueManager : MonoBehaviour
 
     private void CleanupRemainingQueueVisuals()
     {
-        // Destroy only items still under the queue root.
-        // Items moved to the grid should never be destroyed here.
         for (int i = activeQueueItems.Count - 1; i >= 0; i--)
         {
             DraggableItem item = activeQueueItems[i];

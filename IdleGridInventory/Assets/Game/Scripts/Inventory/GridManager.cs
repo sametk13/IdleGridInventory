@@ -41,6 +41,7 @@ public sealed class GridManager : MonoSingleton<GridManager>
     public event Action<DraggableItem> ItemPlaced;
 
     private bool[,] occupied;
+    private DraggableItem[,] cellOwners;
     private readonly Dictionary<DraggableItem, List<Vector2Int>> itemCells = new();
 
     // Preview data
@@ -54,6 +55,7 @@ public sealed class GridManager : MonoSingleton<GridManager>
             gridRoot = transform as RectTransform;
 
         occupied = new bool[columns, rows];
+        cellOwners = new DraggableItem[columns, rows];
         cellImages = new Image[columns, rows];
 
         GenerateGridVisual();
@@ -127,6 +129,7 @@ public sealed class GridManager : MonoSingleton<GridManager>
         return GetCellAnchoredPosition(startX, startY);
     }
 
+    // Bounds-only check (overlaps are allowed; existing items will be kicked to queue).
     public bool CanPlace(DraggableItem item, int startX, int startY)
     {
         if (item == null) return false;
@@ -144,12 +147,56 @@ public sealed class GridManager : MonoSingleton<GridManager>
 
             if (gx < 0 || gx >= columns || gy < 0 || gy >= rows)
                 return false;
-
-            if (occupied[gx, gy])
-                return false;
         }
 
         return true;
+    }
+
+    public bool TryPlaceWithKick(DraggableItem item, int startX, int startY, ItemQueueManager queue)
+    {
+        if (!CanPlace(item, startX, startY))
+            return false;
+
+        List<DraggableItem> overlapping = GetOverlappingItems(item, startX, startY);
+        for (int i = 0; i < overlapping.Count; i++)
+        {
+            DraggableItem other = overlapping[i];
+            if (other == null || other == item) continue;
+
+            Clear(other);
+            queue?.ReturnToQueue(other);
+        }
+
+        Place(item, startX, startY);
+        return true;
+    }
+
+    private List<DraggableItem> GetOverlappingItems(DraggableItem item, int startX, int startY)
+    {
+        var results = new List<DraggableItem>();
+        if (item == null) return results;
+
+        IReadOnlyList<Vector2Int> shape = item.ShapeCells;
+        if (shape == null || shape.Count == 0) return results;
+
+        for (int i = 0; i < shape.Count; i++)
+        {
+            Vector2Int c = shape[i];
+
+            int gx = startX + c.x;
+            int gy = startY + c.y;
+
+            if (gx < 0 || gx >= columns || gy < 0 || gy >= rows)
+                continue;
+
+            DraggableItem owner = cellOwners[gx, gy];
+            if (owner == null) continue;
+            if (results.Contains(owner)) continue;
+
+            results.Add(owner);
+        }
+
+        return results;
     }
 
     public void Place(DraggableItem item, int startX, int startY)
@@ -169,6 +216,7 @@ public sealed class GridManager : MonoSingleton<GridManager>
             int gy = startY + c.y;
 
             occupied[gx, gy] = true;
+            cellOwners[gx, gy] = item;
             cells.Add(new Vector2Int(gx, gy));
         }
 
@@ -189,7 +237,11 @@ public sealed class GridManager : MonoSingleton<GridManager>
         {
             Vector2Int c = cells[i];
             if (c.x >= 0 && c.x < columns && c.y >= 0 && c.y < rows)
+            {
                 occupied[c.x, c.y] = false;
+                if (cellOwners[c.x, c.y] == item)
+                    cellOwners[c.x, c.y] = null;
+            }
         }
 
         itemCells.Remove(item);
@@ -290,9 +342,6 @@ public sealed class GridManager : MonoSingleton<GridManager>
             Image img = cellImages[c.x, c.y];
             if (img == null) continue;
 
-            // Reset to prefab default by setting to white (tintless).
-            // Keep your base cell color in the prefab (Image color),
-            // and use a child overlay if you want perfect reset.
             img.color = Color.white;
         }
 

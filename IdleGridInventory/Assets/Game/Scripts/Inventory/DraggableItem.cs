@@ -24,6 +24,13 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
     public ItemDefinitionSO Definition => definition;
 
+    public void AssignToQueue(ItemQueueManager queue)
+    {
+        ownerQueue = queue;
+        isQueueItem = true;
+        isOnGrid = false;
+    }
+
     public IReadOnlyList<Vector2Int> ShapeCells
         => definition != null ? definition.ShapeCells : new[] { Vector2Int.zero };
 
@@ -101,7 +108,6 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
         canvasGroup.blocksRaycasts = false;
 
-        // Initialize preview if pointer already over grid.
         if (GridManager.Instance.TryGetCellIndex(eventData.position, uiCamera, out int x, out int y))
             GridManager.Instance.ShowPlacementPreview(this, x, y);
         else
@@ -127,27 +133,37 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
         isDragging = false;
 
-        bool placed =
-            GridManager.Instance.TryGetCellIndex(eventData.position, uiCamera, out int x, out int y) &&
-            GridManager.Instance.CanPlace(this, x, y);
+        ItemQueueManager queue = ownerQueue != null ? ownerQueue : FindFirstObjectByType<ItemQueueManager>();
 
-        if (placed)
+        bool isOverGrid = GridManager.Instance.TryGetCellIndex(eventData.position, uiCamera, out int x, out int y);
+
+        if (isOverGrid && GridManager.Instance.CanPlace(this, x, y))
         {
             rectTransform.SetParent(GridManager.Instance.PlacedItemsRoot, worldPositionStays: false);
             rectTransform.anchoredPosition = GridManager.Instance.GetItemAnchoredPosition(x, y);
 
-            GridManager.Instance.Place(this, x, y);
+            GridManager.Instance.TryPlaceWithKick(this, x, y, queue);
 
             if (isQueueItem)
             {
                 isQueueItem = false;
                 ownerQueue?.NotifyConsumedFromQueue(this);
             }
+
+            // Always re-layout the queue after a successful placement.
+            queue?.RefreshLayout();
         }
         else
         {
-            rectTransform.SetParent(originalParent, worldPositionStays: false);
-            rectTransform.anchoredPosition = originalAnchoredPos;
+            if (queue != null)
+            {
+                queue.ReturnToQueue(this);
+            }
+            else
+            {
+                rectTransform.SetParent(originalParent, worldPositionStays: false);
+                rectTransform.anchoredPosition = originalAnchoredPos;
+            }
         }
 
         GridManager.Instance.ClearPlacementPreview();
