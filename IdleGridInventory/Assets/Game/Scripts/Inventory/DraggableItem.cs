@@ -8,7 +8,6 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
     private PlacedItemCooldownController cooldownController;
 
     private RectTransform rectTransform;
-
     private CanvasGroup canvasGroup;
 
     private Vector2 originalAnchoredPos;
@@ -26,7 +25,6 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
     public ItemDefinitionSO Definition => definition;
 
-
     private IBrain brain;
 
     public void Inject(IBrain brain)
@@ -42,6 +40,9 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         ownerQueue = queue;
         isQueueItem = true;
         isOnGrid = false;
+
+        // Requirement: when returned to queue, cooldown must reset and overlay must be hidden.
+        cooldownController?.ResetToQueue();
     }
 
     public IReadOnlyList<Vector2Int> ShapeCells
@@ -74,7 +75,12 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         ApplyVisual();
         ApplyCooldown();
         ApplySize();
+
+        // If this instance starts in queue, ensure cooldown is idle.
+        if (isQueueItem)
+            cooldownController?.ResetToQueue();
     }
+
     private void ApplyCooldown()
     {
         if (cooldownController == null) return;
@@ -82,6 +88,7 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
         cooldownController.SetCooldownSeconds(definition.CooldownSeconds);
     }
+
     private void ApplyVisual()
     {
         if (itemView == null) return;
@@ -103,13 +110,15 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
         float w = bounds.width * size + (bounds.width - 1) * space;
         float h = bounds.height * size + (bounds.height - 1) * space;
 
-
         itemView.SetImageSizes(w, h);
     }
 
     public void OnPointerDown(PointerEventData eventData)
     {
         if (GridManager.Instance == null) return;
+
+        // Requirement: when held in hand, cooldown must pause (not reset).
+        cooldownController?.PauseCooldown();
 
         isDragging = true;
         uiCamera = eventData.pressEventCamera;
@@ -164,20 +173,31 @@ public sealed class DraggableItem : MonoBehaviour, IPointerDownHandler, IDragHan
 
             GridManager.Instance.TryPlaceWithKick(this, x, y, queue);
 
+            // Requirement: when dropped back to grid, resume from where it left off.
+            // Only start from 0 the very first time it gets placed.
+            if (cooldownController != null)
+            {
+                if (cooldownController.HasStartedOnce)
+                    cooldownController.ResumeCooldown();
+                else
+                    cooldownController.StartCooldown();
+            }
+
             if (isQueueItem)
             {
                 isQueueItem = false;
                 ownerQueue?.NotifyConsumedFromQueue(this);
             }
 
-            // Always re-layout the queue after a successful placement.
             queue?.RefreshLayout();
         }
         else
         {
             if (queue != null)
             {
+                // Returning to queue: reset cooldown and hide overlay.
                 queue.ReturnToQueue(this);
+                cooldownController?.ResetToQueue();
             }
             else
             {

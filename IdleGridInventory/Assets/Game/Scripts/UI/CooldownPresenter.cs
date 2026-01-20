@@ -28,14 +28,10 @@ public sealed class CooldownPresenter : MonoBehaviour, IBrainModule
         view = brain.Get<CooldownOverlayView>();
 
         if (view == null)
-        {
             Debug.LogError("[CooldownPresenter] CooldownOverlayView reference is null.", this);
-        }
 
         if (timer == null)
-        {
             Debug.LogError("[CooldownPresenter] ICooldownTimer reference is null.", this);
-        }
 
         injected = true;
         TryHook();
@@ -70,6 +66,15 @@ public sealed class CooldownPresenter : MonoBehaviour, IBrainModule
 
     private void OnProgressChanged(float progress01)
     {
+        // If timer is not running, we consider this "idle" state (e.g., in queue).
+        // Requirement: overlay must be hidden and reset in idle.
+        if (!timer.IsRunning)
+        {
+            view.SetCooldownFill01(0f);
+            view.SetVisible(false);
+            return;
+        }
+
         // progress01: 0 -> started, 1 -> ready
         // requirement: overlay fillAmount 1 -> 0
         float overlayFill = 1f - progress01;
@@ -79,7 +84,8 @@ public sealed class CooldownPresenter : MonoBehaviour, IBrainModule
 
     private void OnCompleted()
     {
-        // When ready, overlay should be 0 (already)
+        // When ready, overlay should be 0
         view.SetCooldownFill01(0f);
+        view.SetVisible(true);
     }
 }

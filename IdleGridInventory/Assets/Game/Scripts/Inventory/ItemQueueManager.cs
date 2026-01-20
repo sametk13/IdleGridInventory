@@ -16,6 +16,10 @@ public sealed class ItemQueueManager : MonoBehaviour
     private readonly List<DraggableItem> activeQueueItems = new();
     private int consumedSinceLastSpawn;
 
+    // Tracks which items were consumed from the current batch.
+    // If one of them is returned back to the queue, we decrement the counter to prevent early respawn.
+    private readonly HashSet<DraggableItem> consumedThisBatch = new();
+
     public RectTransform QueueItemsRoot => queueItemsRoot;
 
     private void Start()
@@ -28,6 +32,11 @@ public sealed class ItemQueueManager : MonoBehaviour
         if (item == null) return;
 
         activeQueueItems.Remove(item);
+
+        // Only count once per item for this batch.
+        if (!consumedThisBatch.Add(item))
+            return;
+
         consumedSinceLastSpawn++;
 
         if (consumedSinceLastSpawn >= spawnCount)
@@ -56,6 +65,12 @@ public sealed class ItemQueueManager : MonoBehaviour
         if (!activeQueueItems.Contains(item))
             activeQueueItems.Add(item);
 
+        // If this item was counted as "consumed" from the current batch, undo that consumption.
+        if (consumedThisBatch.Remove(item))
+        {
+            consumedSinceLastSpawn = Mathf.Max(0, consumedSinceLastSpawn - 1);
+        }
+
         LayoutQueueItems();
     }
 
@@ -67,7 +82,10 @@ public sealed class ItemQueueManager : MonoBehaviour
     private void SpawnNewBatch(bool clearConsumedCounter)
     {
         if (clearConsumedCounter)
+        {
             consumedSinceLastSpawn = 0;
+            consumedThisBatch.Clear();
+        }
 
         CleanupRemainingQueueVisuals();
 
